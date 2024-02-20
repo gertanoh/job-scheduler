@@ -23,7 +23,7 @@ For this project scope, a Job is a CI/CD build and test project.
 ## Design
 
 The system is configured to perform task as early as possible, with a resolution of a minute.
-The output of the execution are stored in cloud storage, S3.
+The output of the execution are stored in cloud storage, S3. The jobs will executed inside a docker container to provide isolation.
 
 ### API routes
 - /api/v1/login : POST, login is handled with auth0.
@@ -34,6 +34,50 @@ The output of the execution are stored in cloud storage, S3.
 
 ### Database Design
 
+For retrieve operations. Given a user_id, retrieve user_jobs, all scheduled_tasks to be executed.
+For update operations, user can create/delete jobs, update job's next execution timestamp. a service can update the task status.
+We have read and write.
+To execute tasks at the scheduled time, we need a (fast) to retrieve all jobs to be executed in the current time window.
+A noSQL database might perform better here at high scale, however, i think a PostgresSQL will also perform well for a general use case.
+It is also faster to setup and a lot of developers have the know-how.
+
+Job table : to store generic job information
+
+user_id | job_id | is_recurring | schedule | created_time
+909     | 143214 | true         | 1h30m    | 2024-02-24T21:09:02
+
+Job schedule : to store next job execution status
+
+job_id | next_execution_time
+143214 | 2024-02-24T21:09
+
+An index on next_execution_time to allow fast retrieval.
+Request would look like 
+select * from job_schedule where next_execution_time = '2024-02-24T21:09'
+At high scale, even with the index,  this query might be slow
+
+Look at the next_execution_time, it might be useful to shard the DB on execution_time to reduce the range of scan.
+It might also be worth to take a look at a NoSQL, i.e Cassandra.
+
+Job execution history
+job_id | execution_time | status | last_update_time | logs_path | execution_time
+
+Services : 
+
+Job Service : 
+Receive clients job request and store them inside the DB.
+
+Enqueue service : 
+Poll the DB every minute and push to the jobs to a queue.
+We are going to use NATS message broker. Kafka would also do it.
+
+## Main Workflow
+When a user create job, it will hit the job_service REST endpoint through the LB. the job_service will create the job inside the DB, compute the next execution time.
+Data is provided using a yaml format. Ret value is 201 with job_id.
+The scheduling service polls the job schedule DB every minute for pending jobs. The jobs are pushed to the NATS queue. Update job_execution_history to schedule and compute next_execution_time.
+The execution service retrieves a job from the queue, and execute it. It then updates the status on the DB. The output of the execution is stored on S3.
+
+![Job Scheduler System Design](job_scheduler_system_design.png)
 
 ### Notes
 A job is a go package that is build and test, The client will submit the job via an API call with yaml spec (i.e url, task (build, test), format, ) and the output will be store in s3.
