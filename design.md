@@ -18,6 +18,7 @@ For this project scope, a Job is a CI/CD build and test project.
 * Highly available
 * Reliability : job should run at least once and a job shall not be executed twice at the same time
 * Durable : jobs information shall not be lost
+* Security : Job execution shall be isolated
 
 
 ## Design
