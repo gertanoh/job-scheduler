@@ -88,3 +88,8 @@ Going with these tech stack :
 Go(echo), Docker API, AWS RDS (postgres), DynamoDB, S3
 For authentification, let's do auth0
 
+
+#### Authentification
+Used Auth0 to implement login/logout. Nice experience to learn about Auth0.
+
+#### Yaml file parsing

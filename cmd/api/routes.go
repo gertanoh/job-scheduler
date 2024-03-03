@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/gob"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -35,13 +36,21 @@ func (app *application) Router() *echo.Echo {
 	e.Server.WriteTimeout = 30 * time.Second
 	e.Server.IdleTimeout = time.Minute
 
+	authGroup := e.Group("")
+	authGroup.Use(app.isAuthenticated)
+	authGroup.GET("/user", app.userHandler)
+	authGroup.GET("/logout", app.logoutHandler)
+
 	e.GET("/login", app.loginHandler)
 	e.GET("/callback", app.callbackHandler)
-	e.GET("/user", app.userHandler)
-	e.GET("/logout", app.logoutHandler)
+	e.GET("/", app.homeHandler)
 	e.RouteNotFound("/*", app.routeNotFoundHandler)
 
 	return e
+}
+
+func (app *application) homeHandler(c echo.Context) error {
+	return c.String(http.StatusOK, "Home sweet Home")
 }
 
 func (app *application) loginHandler(c echo.Context) error {
@@ -63,11 +72,6 @@ func (app *application) loginHandler(c echo.Context) error {
 }
 
 func (app *application) callbackHandler(c echo.Context) error {
-	app.logger.Info("callbackHandler")
-	app.logger.Info("Getting the cookie",
-		zap.String("############# ", c.QueryParam("code")),
-		zap.String("############# auth-session ", c.QueryParam("state")),
-	)
 
 	sess, _ := session.Get("session", c)
 	if c.QueryParam("state") != sess.Values["auth-state"] {
@@ -97,6 +101,7 @@ func (app *application) callbackHandler(c echo.Context) error {
 	}
 
 	c.Redirect(http.StatusTemporaryRedirect, "/user")
+	fmt.Println(profile)
 	return nil
 }
 
@@ -132,6 +137,12 @@ func (app *application) logoutHandler(c echo.Context) error {
 	// clear cookies
 	sess.Values["access_token"] = nil
 	sess.Values["profile"] = nil
+
+	// Save the session to apply the changes
+	if err := sess.Save(c.Request(), c.Response()); err != nil {
+		return c.String(http.StatusInternalServerError, "Error saving session: "+err.Error())
+	}
+
 	return nil
 }
 
@@ -150,4 +161,27 @@ func generateRandomState() (string, error) {
 	state := base64.StdEncoding.EncodeToString(b)
 
 	return state, nil
+}
+
+// middlewares
+
+func (app *application) isAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		sess, err := session.Get("session", c)
+		if err != nil {
+			app.logger.Error("Error getting the session")
+			return c.String(http.StatusInternalServerError, "Internal Server Error")
+		}
+
+		// check if user is authenticated
+		if p, ok := sess.Values["profile"]; !ok || p == nil {
+			return echo.NewHTTPError(http.StatusUnauthorized, "Not authenticated")
+		}
+
+		if err := next(c); err != nil {
+			app.logger.Error("Error is next handler : ", zap.Error(err))
+			return c.String(http.StatusInternalServerError, "Internal server error")
+		}
+		return nil
+	}
 }
