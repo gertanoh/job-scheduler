@@ -93,3 +93,33 @@ For authentification, let's do auth0
 Used Auth0 to implement login/logout. Nice experience to learn about Auth0.
 
 #### Yaml file parsing
+
+File template
+
+* The schedule field follows a crontab like expression
+
+```
+<second> <minute> <hour> <day>
+```
+
+
+jobs:
+  - name: BuildAndTest
+    schedule: "0 0 * * *"  # Every day at midnight
+    run_once: false         # Run multiple times
+    steps:
+      - name: Set up Go
+        run: go mod
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...
+
+  - name: NightlyCleanup
+    schedule: "0 2 * * *"  # Every day at 2 AM
+    run_once: true          # Run only once
+    steps:
+      - name: Cleanup
+        run: ./cleanup_script.sh

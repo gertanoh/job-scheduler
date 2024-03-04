@@ -47,6 +47,11 @@ audit: vendor
 	@echo 'Running tests'
 	go test -race -vet=off ./...
 
+
+.PHONY: test
+test: 
+	@echo 'Running tests'
+	go test -race -vet=off ./...
 ## vendor: tidy and vendor dependencies
 .PHONY: vendor
 vendor:
