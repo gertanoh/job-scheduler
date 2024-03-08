@@ -9,52 +9,49 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"go.uber.org/zap"
+
 )
+
+type config struct {
+	env  string
+	db   struct {
+		dsn string
+	}
+}
+
+// application config struct
+type application struct {
+	config config
+	logger *zap.Logger
+}
 
 // Add bash scripts pull golang image before executing executor
 func main() {
 	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		panic(err)
+
+	var cfg config
+
+	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+
+	flag.Parse()
+
+	if err := godotenv.Load(); err != nil {
+		log.Fatalf("Failed to loav env vars %v", err)
 	}
-	defer cli.Close()
+	logger := zap.Must(zap.NewProduction())
+	defer logger.Sync()
 
-	resp, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: "golang",
-		Cmd:   []string{"go", "adada"},
-		Tty:   false,
-	}, nil, nil, nil, "")
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
-		log.Fatal(err)
-	}
-
-	statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
-	select {
-	case err := <-errCh:
-		if err != nil {
-			log.Fatal(err)
-
-		}
-	case <-statusCh:
+	app := &application{
+		config: cfg,
+		logger: logger,
 	}
 
-	out, err := cli.ContainerLogs(ctx, resp.ID, container.LogsOptions{ShowStdout: true})
-	if err != nil {
-		log.Fatal(err)
+	// main
+	// pull a job from nats queue, try to get a lock from zookeeper,
+	// if fails drop the job
+	// else launch the job in a container, periodically do heartbeat to zookeeper
 
-	}
 
-	fmt.Println("########################")
-	stdcopy.StdCopy(os.Stdout, os.Stderr, out)
-
-	err = cli.ContainerRemove(ctx, resp.ID, container.RemoveOptions{})
-	if err != nil {
-		log.Fatal(err)
-
-	}
 }
