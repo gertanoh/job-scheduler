@@ -1,0 +1,23 @@
+jobs:
+  - name: BuildAndTest
+    schedule: "0 0 * * *"  # Every day at midnight
+    run_once: false         # Run multiple times
+    steps:
+      - name: Set up Go
+        run: go mod
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...
+
+  - name: BuildAndTest3
+    schedule: "0 10 * * *"  # Every day at midnight
+    run_once: false         # Run multiple times
+    steps:
+      - name: Set up Go
+        run: go mod
+
+      - name: Build
+        run: go build -v ./...

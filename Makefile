@@ -90,4 +90,4 @@ docker/compose/rebuild:
 .PHONY: docker/compose/down
 docker/compose/down:
 	docker compose down
-	docker volume rm greenlight_postgres_data
+	docker volume rm job-scheduler_postgres_data

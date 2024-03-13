@@ -37,9 +37,15 @@ func (app *application) Router() *echo.Echo {
 	e.Server.IdleTimeout = time.Minute
 
 	authGroup := e.Group("")
-	authGroup.Use(app.isAuthenticated)
+	if app.config.env != "development" {
+		authGroup.Use(app.isAuthenticated)
+	}
 	authGroup.GET("/user", app.userHandler)
 	authGroup.GET("/logout", app.logoutHandler)
+	authGroup.POST("/submitJob", app.submitJobHandler)
+	authGroup.POST("/jobLastExecutionStatus", app.retrieveLatestExecutionStatus)
+	authGroup.POST("/jobLastExecutionLogs", app.retrieveLatestExecutionLogs)
+	authGroup.POST("/removeJob", app.removeJob)
 
 	e.GET("/login", app.loginHandler)
 	e.GET("/callback", app.callbackHandler)
@@ -148,7 +154,7 @@ func (app *application) logoutHandler(c echo.Context) error {
 
 func (app *application) routeNotFoundHandler(c echo.Context) error {
 	app.logger.Info("routeNotFoundHandler")
-	return c.String(http.StatusNotFound, "routeNotFoundHandler")
+	return c.String(http.StatusNotFound, "routeNotFoundHandler\n")
 }
 
 func generateRandomState() (string, error) {
