@@ -5,14 +5,16 @@ import (
 )
 
 // Job represents a scheduled job.
+type Step struct {
+	Name string `json:"name" yaml:"name"`
+	Run  string `json:"run" yaml:"run"`
+}
+
 type Job struct {
-	Name     string `yaml:"name"`
-	Schedule string `yaml:"schedule"`
-	RunOnce  bool   `yaml:"run_once"`
-	Steps    []struct {
-		Name string `yaml:"name"`
-		Run  string `yaml:"run"`
-	} `yaml:"steps"`
+	Name     string `json:"name" yaml:"name"`
+	Schedule string `json:"schedule" yaml:"schedule"`
+	RunOnce  bool   `json:"run_once" yaml:"run_once"`
+	Steps    []Step `json:"steps" yaml:"steps"`
 }
 
 // ParseYAMLFile parses a YAML file and returns a slice of Job structs.

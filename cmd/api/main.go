@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gertanoh.job-scheduler/internal/authenticator"
+	"gertanoh.job-scheduler/internal/data"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
@@ -25,6 +26,7 @@ type application struct {
 	config config
 	auth   *authenticator.Authenticator
 	logger *zap.Logger
+	models data.Models
 }
 
 func main() {
@@ -32,7 +34,7 @@ func main() {
 	var cfg config
 
 	flag.IntVar(&cfg.port, "port", 8000, "API server port")
-	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+	flag.StringVar(&cfg.env, "env", "dev", "Environment (dev|staging|prod)")
 	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
 
 	flag.Parse()
@@ -62,6 +64,7 @@ func main() {
 		config: cfg,
 		auth:   authMethod,
 		logger: logger,
+		models: data.NewModels(db),
 	}
 
 	app.serve()

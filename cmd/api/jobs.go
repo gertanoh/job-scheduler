@@ -6,7 +6,6 @@ import (
 
 	"gertanoh.job-scheduler/internal/ymlparser"
 	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 )
 
 // post request to submit a job
@@ -18,12 +17,12 @@ func (app *application) submitJobHandler(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Failed to read request body")
 	}
 
-	jobs, err := ymlparser.ParseYAML(yamlData)
+	_, err = ymlparser.ParseYAML(yamlData)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "Failed to convert body into yaml struct")
 	}
 
-	app.logger.Info("len of job : ", zap.Int("len", len(jobs)))
+	// app.logger.Info("len of job : ", zap.Int("len", len(jobs)))
 
 	return c.String(http.StatusOK, "Request successful")
 }

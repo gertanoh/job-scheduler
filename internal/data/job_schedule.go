@@ -5,34 +5,31 @@ import (
 	"database/sql"
 	"errors"
 	"time"
-
-	"gertanoh.job-scheduler/internal/ymlparser"
-	"github.com/lib/pq"
 )
 
-type JobModel struct {
+type JobScheduleModel struct {
 	DB *sql.DB
 }
 
-type Job struct {
-	ID int64 `json:"id"`
-	ymlparser.Job
-	CreatedAt time.Time `json:"created_at"`
-	Version   int32     `json:"version"`
+type JobSchedule struct {
+	ID            int64     `json:"id"`
+	JobID         int64     `json:"job_id"`
+	CreatedAt     time.Time `json:"created_at"`
+	NextExecution int64     `json:"next_execution"`
 }
 
-func (j JobModel) Insert(job *Job) error {
+func (j JobScheduleModel) Insert(job *JobSchedule) error {
 	query := `
-		INSERT INTO jobs (name, schedule, run_once, steps)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO jobs_schedule (job_id, next_execution)
+		VALUES ($1, $2)
 		RETURNING id, created_at`
 
-	args := []interface{}{job.Name, job.Schedule, job.RunOnce, pq.Array(job.Steps)}
+	args := []interface{}{job.JobID, job.NextExecution}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := j.DB.QueryRowContext(ctx, query, args...).Scan(&job.ID, &job.CreatedAt, &job.Version)
+	err := j.DB.QueryRowContext(ctx, query, args...).Scan(&job.ID, &job.CreatedAt)
 	if err != nil {
 		return err
 	}
@@ -40,28 +37,26 @@ func (j JobModel) Insert(job *Job) error {
 	return nil
 }
 
-func (jm JobModel) Get(id int64) (*Job, error) {
+func (jm JobScheduleModel) Get(id int64) (*JobSchedule, error) {
 	if id < 1 {
 		return nil, ErrRecordNotFound
 	}
 
 	query := `
-		SELECT id, created_at, name, schedule, steps, run_once, version
-		FROM jobs
+		SELECT id, created_at, job_id, next_execution
+		FROM jobs_schedule
 		WHERE id = $1`
 
-	var job Job
+	var job JobSchedule
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	err := jm.DB.QueryRowContext(ctx, query, id).Scan(
 		&job.ID,
-		&job.Name,
+		&job.JobID,
+		&job.NextExecution,
 		&job.CreatedAt,
-		&job.Schedule,
-		&job.RunOnce,
-		pq.Array(&job.Steps),
 	)
 	// Handle any errors. If there was no matching movie found, Scan() will return
 	// a sql.ErrNoRows error. We check for this and return our custom ErrRecordNotFound
@@ -78,14 +73,11 @@ func (jm JobModel) Get(id int64) (*Job, error) {
 	return &job, nil
 }
 
-func (jm JobModel) Update(job *Job) error {
+func (jm JobScheduleModel) Update(job *JobSchedule) error {
 	query := `
-		UPDATE jobs
-		SET name = $1, schedule = $2, run_once = $3, steps = $4, version = version + 1
-		WHERE id = $5 AND version = $6
-		RETURNING version`
-	args := []interface{}{job.Name, job.Schedule, job.RunOnce, job.Steps,
-		job.ID, job.Version}
+		UPDATE jobs_schedule
+		SET job_id = $1, next_execution = $2, WHERE id = $3`
+	args := []interface{}{job.JobID, job.NextExecution, job.ID}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -98,9 +90,9 @@ func (jm JobModel) Update(job *Job) error {
 	return nil
 }
 
-func (jm JobModel) Delete(id int64) error {
+func (jm JobScheduleModel) Delete(id int64) error {
 	query := `
-		DELETE FROM jobs
+		DELETE FROM jobs_schedule
 		WHERE id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

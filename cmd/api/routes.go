@@ -37,7 +37,7 @@ func (app *application) Router() *echo.Echo {
 	e.Server.IdleTimeout = time.Minute
 
 	authGroup := e.Group("")
-	if app.config.env != "development" {
+	if app.config.env != "dev" {
 		authGroup.Use(app.isAuthenticated)
 	}
 	authGroup.GET("/user", app.userHandler)
